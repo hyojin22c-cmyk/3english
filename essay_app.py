@@ -576,7 +576,10 @@ with tab_student:
                                     except anthropic.AuthenticationError:
                                         st.error("🔑 API 키에 문제가 있습니다. 선생님께 문의하세요.")
                                     except anthropic.APIError as e:
-                                        st.error(f"API 오류가 발생했습니다: {e}")
+                                        if "overloaded" in str(e).lower() or "529" in str(e):
+                                            st.error("⏳ 서버가 일시적으로 바빠요. 1~2분 후 다시 시도해주세요.")
+                                        else:
+                                            st.error(f"API 오류가 발생했습니다: {e}")
                                     except Exception as e:
                                         st.error(f"예상치 못한 오류: {e}")
 
