@@ -384,7 +384,7 @@ def build_topic_prompt(passages, career, interests):
             passage_text += f"   키워드: {keywords}\n"
         passage_text += "\n"
 
-    return f"""당신은 고등학교 3학년 영어 독해와 작문 수업의 에세이 작성을 도와주는 전문가입니다.
+    return f"""당신은 고등학교 3학년 영어 독해와 작문 수업의 에세이 주제 선정을 도와주는 전문가입니다.
 
 [수업에서 다룬 지문 목록]
 {passage_text}
@@ -402,38 +402,35 @@ def build_topic_prompt(passages, career, interests):
 
 📚 **연계 지문**: (위 목록에서 연결되는 지문 제목)
 
-📌 **주제 설명**: 이 주제가 무엇을 다루는지, 왜 이 지문과 연결되는지 2~3문장
+📌 **이런 주제예요**: 이 주제가 무엇을 다루는지, 왜 이 지문과 연결되는지 2~3문장
 
-📝 **에세이 개요**:
-- **서론 (Introduction)**: 어떤 문제의식이나 질문으로 시작할지, 독자의 관심을 끄는 방법 제안 (2~3문장)
-- **본론 1 (Body 1)**: 첫 번째 핵심 논점과 다룰 내용 (2~3문장)
-- **본론 2 (Body 2)**: 두 번째 핵심 논점과 다룰 내용 (2~3문장)
-- **결론 (Conclusion)**: 마무리 방향과 주장 요약 방법 (2~3문장)
+💡 **이런 방향으로 써볼 수 있어요**: 에세이에서 다룰 수 있는 핵심 질문이나 논점을 2~3개 제시. "~에 대해 생각해보세요", "~를 비교해보는 건 어떨까요" 같은 제안 톤으로.
 
-🔑 **핵심 영어 표현**: 에세이에서 활용하면 좋을 영어 표현 3~4개 (표현 — 한국어 뜻)
+🔑 **활용하면 좋을 영어 표현**: 에세이에서 써볼 만한 영어 표현 3~4개 (표현 — 한국어 뜻)
 
 [중요 규칙]
-- 에세이 본문을 직접 작성하지 마세요. 개요와 방향만 제시합니다.
-- 학생이 스스로 작성할 수 있도록 구체적이되 완성된 문장은 주지 않습니다.
+- 서론/본론/결론 같은 구체적 개요를 작성하지 마세요.
+- 완성된 문장이나 단락을 제시하지 마세요.
+- "이런 방향이 있다"는 힌트만 주고, 구체적 구성은 학생이 직접 하도록 남겨두세요.
 - 고등학생 수준에서 실현 가능한 주제로 제안하세요.
 - 영어 에세이이므로 영문 제목과 영어 표현을 포함하되, 설명은 한국어로 합니다."""
 
 def build_refine_prompt(chosen_topic, student_memo):
-    return f"""학생이 아래 에세이 주제와 개요를 선택했고, 추가 요청사항이 있습니다.
+    return f"""학생이 아래 에세이 주제를 선택했고, 추가로 궁금한 점이 있습니다.
 
-[선택한 주제와 개요]
+[선택한 주제]
 {chosen_topic}
 
-[학생 요청사항]
+[학생 질문/요청]
 {student_memo}
 
-학생의 요청을 반영하여 개요를 수정·보완해주세요.
+학생의 요청을 반영하여 에세이 방향을 보충해주세요.
 
 [중요 규칙]
-- 에세이 본문을 직접 작성하지 마세요. 개요와 방향만 수정합니다.
-- 수정된 개요를 원래와 같은 형식(서론-본론1-본론2-결론)으로 제시합니다.
-- 변경된 부분을 간단히 설명해주세요.
-- 핵심 영어 표현도 요청에 맞게 업데이트해주세요."""
+- 서론/본론/결론 같은 구체적 개요를 작성하지 마세요.
+- 완성된 문장이나 단락을 제시하지 마세요.
+- "이런 관점도 있다", "이런 자료를 찾아보면 좋겠다" 수준의 힌트만 주세요.
+- 핵심 영어 표현을 요청에 맞게 추가/업데이트해주세요."""
 
 # ── 세션 초기화 ───────────────────────────────────────────
 if "passages" not in st.session_state:
@@ -590,27 +587,27 @@ with tab_student:
                     st.markdown("---")
 
                     # ── STEP 2: 개요 다듬기 (1회 피드백) ──
-                    st.markdown("#### 🔄 개요 다듬기")
-                    st.caption("위 주제 중 하나를 골라 개요를 수정하고 싶다면 아래에 요청하세요. (1회)")
+                    st.markdown("#### 🔄 추가 질문하기")
+                    st.caption("주제에 대해 더 알고 싶거나 방향을 바꾸고 싶다면 질문해보세요. (1회)")
 
                     chosen = st.text_input("선택한 주제 번호", placeholder="예: 1")
                     memo = st.text_area(
-                        "수정 요청사항",
-                        placeholder="예: 본론에서 한국 사례를 추가하고 싶어요 / 서론을 질문 형식으로 바꾸고 싶어요 / 환경 문제보다 경제적 관점에서 다루고 싶어요",
+                        "질문 / 요청",
+                        placeholder="예: 한국 사례도 넣고 싶은데 어떤 걸 찾아보면 좋을까요? / 경제적 관점으로 바꾸고 싶어요 / 이 주제로 쓸 때 주의할 점이 있나요?",
                         height=100
                     )
 
-                    if st.button("🔄 개요 다듬기", use_container_width=True):
+                    if st.button("🔄 추가 질문", use_container_width=True):
                         if not chosen or not memo:
-                            st.warning("주제 번호와 수정 요청을 모두 입력해주세요.")
+                            st.warning("주제 번호와 질문을 모두 입력해주세요.")
                         elif st.session_state.refine_result:
-                            st.info("개요 다듬기는 1회만 가능합니다.")
+                            st.info("추가 질문은 1회만 가능합니다.")
                         elif monthly >= limit:
                             st.error(f"⚠️ 이번 달 사용 횟수를 초과했습니다.")
                         else:
                             client = get_claude_client()
                             if client:
-                                with st.spinner("개요를 다듬는 중..."):
+                                with st.spinner("답변을 준비하는 중..."):
                                     try:
                                         # 선택한 주제 부분 추출 (전체 결과에서)
                                         refine_prompt = build_refine_prompt(
@@ -633,14 +630,14 @@ with tab_student:
 
                     if st.session_state.refine_result:
                         st.markdown("---")
-                        st.markdown("#### ✅ 수정된 개요")
+                        st.markdown("#### ✅ 추가 답변")
                         st.markdown(st.session_state.refine_result)
 
                     # ── 다운로드 ──
                     st.markdown("---")
                     download_text = st.session_state.result
                     if st.session_state.refine_result:
-                        download_text += "\n\n" + "=" * 50 + "\n[수정된 개요]\n" + "=" * 50 + "\n\n"
+                        download_text += "\n\n" + "=" * 50 + "\n[추가 답변]\n" + "=" * 50 + "\n\n"
                         download_text += st.session_state.refine_result
 
                     st.download_button(
