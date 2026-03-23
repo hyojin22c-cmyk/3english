@@ -150,8 +150,8 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
 def hash_pw(pw: str) -> str:
     return hashlib.sha256(pw.strip().encode()).hexdigest()
 
-def make_cache_key(selected_titles, career, interests, step) -> str:
-    raw = f"{sorted(selected_titles)}|{career.strip()}|{interests.strip()}|{step}"
+def make_cache_key(career, interests, passage_ids) -> str:
+    raw = f"{career.strip()}|{interests.strip()}|{sorted(passage_ids)}"
     return hashlib.md5(raw.encode()).hexdigest()
 
 # ── Google Sheets 연동 (시트명 "독작_" 접두사) ────────────
@@ -317,7 +317,7 @@ def check_monthly_usage(student_id):
     except Exception:
         return 0
 
-def save_usage_log(student_id, name, selected_titles, career, result_text):
+def save_usage_log(student_id, name, career, interests, result_text):
     try:
         sheet = get_log_sheet()
         truncated = result_text[:3000] if result_text else ""
@@ -325,8 +325,8 @@ def save_usage_log(student_id, name, selected_titles, career, result_text):
             datetime.now().strftime("%Y-%m-%d %H:%M"),
             student_id,
             name,
-            " / ".join(selected_titles),
-            career,
+            "",
+            f"{career} / {interests}" if interests else career,
             truncated
         ])
         check_monthly_usage.clear()
@@ -371,12 +371,12 @@ def get_claude_client():
 # ── 프롬프트: 에세이 주제 + 개요 추천 ────────────────────
 MAX_SUMMARY_LEN = 100
 
-def build_topic_prompt(selected_passages, career, interests):
+def build_topic_prompt(passages, career, interests):
     passage_text = ""
-    for i, p in enumerate(selected_passages, 1):
+    for i, p in enumerate(passages, 1):
         summary = p.get("summary", "")
         keywords = p.get("keywords", "")
-        if len(summary) > MAX_SUMMARY_LEN:
+        if len(passages) > 15 and len(summary) > MAX_SUMMARY_LEN:
             summary = summary[:MAX_SUMMARY_LEN] + "…"
         passage_text += f"{i}. {p['title']}\n"
         passage_text += f"   요약: {summary}\n"
@@ -386,19 +386,21 @@ def build_topic_prompt(selected_passages, career, interests):
 
     return f"""당신은 고등학교 3학년 영어 독해와 작문 수업의 에세이 작성을 도와주는 전문가입니다.
 
-[학생이 선택한 수업 지문]
+[수업에서 다룬 지문 목록]
 {passage_text}
 
 [학생 정보]
 - 희망 진로/관심 분야: {career if career else '미입력'}
 - 추가 관심사: {interests if interests else '미입력'}
 
-위 지문의 주제·내용을 바탕으로, 학생의 진로와 연결할 수 있는 영어 에세이 주제를 정확히 3개 추천하세요.
+위 지문 중 학생의 진로·관심사에 가장 잘 연계되는 지문을 골라, 영어 에세이 주제를 정확히 3개 추천하세요.
 이 에세이는 수행평가이자 생기부 심화 보고서로도 활용됩니다.
 
 각 주제는 아래 형식으로 작성:
 
 **[주제 번호]. 에세이 주제 (영문 제목)**
+
+📚 **연계 지문**: (위 목록에서 연결되는 지문 제목)
 
 📌 **주제 설명**: 이 주제가 무엇을 다루는지, 왜 이 지문과 연결되는지 2~3문장
 
@@ -516,34 +518,20 @@ with tab_student:
                 st.markdown(f"#### 👋 {student['이름']}님 환영해요")
                 st.caption(f"이번 달 {monthly}/{limit}회 사용")
 
-                st.markdown("---")
-                st.markdown("#### 📚 지문 선택")
-                st.caption("에세이에 활용할 지문을 선택하세요 (1~3개 권장)")
-
-                passage_titles = [p["title"] for p in passages]
-                selected_titles = st.multiselect(
-                    "지문 선택",
-                    passage_titles,
-                    max_selections=3,
-                    label_visibility="collapsed"
-                )
-
-                # 선택된 지문 상세 표시
-                if selected_titles:
-                    for p in passages:
-                        if p["title"] in selected_titles:
-                            keywords = p.get("keywords", "")
-                            st.markdown(f"""
-                            <div class="passage-card">
-                                <h4>{p['title']}</h4>
-                                <small style="color:#5C6470;">{p.get('summary','')[:80]}...</small>
-                                {f"<br><small style='color:#1B3A5C;'>🔑 {keywords}</small>" if keywords else ""}
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                st.markdown("---")
                 career = st.text_input("희망 진로 / 관심 분야", placeholder="예: 국제기구, 환경공학, 심리상담...")
                 interests = st.text_input("추가 관심사 (선택)", placeholder="예: 기후변화, 인공지능, 사회적 불평등...")
+
+                st.markdown("---")
+                st.markdown("#### 📚 수업 지문 목록")
+                st.caption(f"총 {len(passages)}개 지문 등록됨 — 전체 지문에서 진로에 맞는 주제를 추천해드려요")
+                for p in passages:
+                    keywords = p.get("keywords", "")
+                    st.markdown(f"""
+                    <div class="passage-card">
+                        <h4>{p['title']}</h4>
+                        {f"<small style='color:#1B3A5C;'>🔑 {keywords}</small>" if keywords else ""}
+                    </div>
+                    """, unsafe_allow_html=True)
 
                 if st.button("🚪 로그아웃", use_container_width=True):
                     st.session_state.auth_student = None
@@ -556,21 +544,19 @@ with tab_student:
 
                 # ── STEP 1: 주제 + 개요 추천 ──
                 if st.button("✨ 주제 추천 받기", use_container_width=True):
-                    if not selected_titles:
-                        st.warning("지문을 1개 이상 선택해주세요!")
-                    elif not career:
+                    if not career:
                         st.warning("희망 진로 / 관심 분야를 입력해주세요!")
                     elif monthly >= limit:
                         st.error(f"⚠️ 이번 달 사용 횟수({monthly}/{limit}회)를 초과했습니다.")
                     else:
-                        selected_passages = [p for p in passages if p["title"] in selected_titles]
-                        cache_key = make_cache_key(selected_titles, career, interests, "topic")
+                        passage_ids = [p.get("id", "") for p in passages]
+                        cache_key = make_cache_key(career, interests, passage_ids)
                         cached = get_cached_result(cache_key)
 
                         if cached:
                             st.session_state.result = cached
                             st.session_state.refine_result = None
-                            save_usage_log(student["학번"], student["이름"], selected_titles, career, cached)
+                            save_usage_log(student["학번"], student["이름"], career, interests, cached)
                             st.caption(f"💡 이번 달 {monthly + 1}/{limit}회 사용 (캐시 활용)")
                         else:
                             client = get_claude_client()
@@ -579,7 +565,7 @@ with tab_student:
                             else:
                                 with st.spinner("에세이 주제를 고민하는 중..."):
                                     try:
-                                        prompt = build_topic_prompt(selected_passages, career, interests)
+                                        prompt = build_topic_prompt(passages, career, interests)
                                         message = client.messages.create(
                                             model="claude-sonnet-4-6",
                                             max_tokens=2048,
@@ -590,7 +576,7 @@ with tab_student:
                                         st.session_state.refine_result = None
 
                                         save_cached_result(cache_key, result_text)
-                                        save_usage_log(student["학번"], student["이름"], selected_titles, career, result_text)
+                                        save_usage_log(student["학번"], student["이름"], career, interests, result_text)
                                         st.caption(f"💡 이번 달 {monthly + 1}/{limit}회 사용했습니다.")
 
                                     except anthropic.RateLimitError:
@@ -644,7 +630,7 @@ with tab_student:
                                         st.session_state.refine_result = message.content[0].text
                                         save_usage_log(
                                             student["학번"], student["이름"],
-                                            selected_titles, career,
+                                            career, interests,
                                             f"[다듬기] {message.content[0].text}"
                                         )
                                     except Exception as e:
