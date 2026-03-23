@@ -260,6 +260,19 @@ def verify_password(stored_hash, input_pw):
         return True
     return False
 
+def reset_student_password(student_id, new_password):
+    """관리자가 학생 비밀번호를 초기화"""
+    try:
+        sheet = get_auth_sheet()
+        all_values = sheet.get_all_values()
+        for i, row in enumerate(all_values):
+            if row and str(row[0]) == str(student_id):
+                sheet.update_cell(i + 1, 3, hash_pw(new_password))
+                return True
+        return False
+    except Exception:
+        return False
+
 # ── 사용 제한 (월별 자동 초기화) ─────────────────────────
 BASE_MONTHLY_LIMIT = 4
 
@@ -738,6 +751,23 @@ with tab_admin:
                                 st.success(f"✅ {target.get('이름', '')}({bonus_id}) — 이번 달 기본 {BASE_MONTHLY_LIMIT}회로 초기화")
                             else:
                                 st.error("초기화 실패.")
+
+            st.markdown("---")
+            st.markdown("#### 🔑 학생 비밀번호 초기화")
+            reset_id = st.text_input("학번", placeholder="예: 30101", key="reset_pw_student_id")
+            reset_pw = st.text_input("새 비밀번호", type="password", key="reset_pw_new")
+            if st.button("🔑 비밀번호 초기화", use_container_width=True, key="reset_pw_btn"):
+                if not reset_id or not reset_pw:
+                    st.warning("학번과 새 비밀번호를 입력해주세요.")
+                else:
+                    target = find_student(reset_id)
+                    if not target:
+                        st.error("등록되지 않은 학번입니다.")
+                    else:
+                        if reset_student_password(reset_id, reset_pw):
+                            st.success(f"✅ {target.get('이름', '')}({reset_id}) 비밀번호가 초기화되었습니다.")
+                        else:
+                            st.error("초기화 실패. 다시 시도해주세요.")
 
             st.markdown("---")
             if st.button("🚪 로그아웃", use_container_width=True, key="admin_logout"):
