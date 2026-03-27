@@ -138,6 +138,20 @@ html, body, .stApp {
     color: white !important;
 }
 
+/* 로그아웃 버튼 */
+.logout-btn button {
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border: 1px solid var(--border) !important;
+    font-size: 0.78rem !important;
+    padding: 0.2rem 0.6rem !important;
+    margin-top: 0.5rem !important;
+}
+.logout-btn button:hover {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+}
+
 hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
 .stSuccess, .stError, .stWarning, .stInfo { border-radius: 6px !important; }
 .stMultiSelect [data-baseweb="tag"] { background: var(--accent) !important; }
@@ -525,8 +539,18 @@ with tab_student:
             col1, col2 = st.columns([1, 1.2], gap="large")
 
             with col1:
-                st.markdown(f"#### 👋 {student['이름']}님 환영해요")
-                st.caption(f"이번 달 {monthly}/{limit}회 사용")
+                hc1, hc2 = st.columns([3, 1])
+                with hc1:
+                    st.markdown(f"#### 👋 {student['이름']}님 환영해요")
+                    st.caption(f"이번 달 {monthly}/{limit}회 사용")
+                with hc2:
+                    st.markdown('<div class="logout-btn">', unsafe_allow_html=True)
+                    if st.button("로그아웃", key="logout_btn"):
+                        st.session_state.auth_student = None
+                        st.session_state.result = None
+                        st.session_state.refine_result = None
+                        st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
 
                 st.markdown(f"""
                 <div style="background: var(--accent-pale); border-radius: 8px; padding: 1rem 1.2rem; margin-bottom: 1rem;">
@@ -537,12 +561,6 @@ with tab_student:
 
                 career = st.text_input("희망 진로 / 관심 분야", placeholder="예: 국제기구, 환경공학, 심리상담...")
                 interests = st.text_input("추가 관심사 (선택)", placeholder="예: 기후변화, 인공지능, 사회적 불평등...")
-
-                if st.button("🚪 로그아웃", use_container_width=True):
-                    st.session_state.auth_student = None
-                    st.session_state.result = None
-                    st.session_state.refine_result = None
-                    st.rerun()
 
             with col2:
                 st.markdown("#### ✨ 에세이 주제 & 개요 추천")
@@ -573,7 +591,7 @@ with tab_student:
                                         prompt = build_topic_prompt(passages, career, interests)
                                         message = client.messages.create(
                                             model="claude-sonnet-4-6",
-                                            max_tokens=2500,
+                                            max_tokens=3000,
                                             messages=[{"role": "user", "content": prompt}]
                                         )
                                         result_text = message.content[0].text
