@@ -573,7 +573,7 @@ with tab_student:
                                         prompt = build_topic_prompt(passages, career, interests)
                                         message = client.messages.create(
                                             model="claude-sonnet-4-6",
-                                            max_tokens=2048,
+                                            max_tokens=2500,
                                             messages=[{"role": "user", "content": prompt}]
                                         )
                                         result_text = message.content[0].text
