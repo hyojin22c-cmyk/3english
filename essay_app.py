@@ -19,7 +19,9 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 
+/* 다크모드 무시하고 라이트 테마 강제 */
 :root {
+    color-scheme: light only;
     --bg: #F4F1EE;
     --surface: #FFFFFF;
     --border: #D4CFC6;
@@ -34,7 +36,28 @@ st.markdown("""
 html, body, .stApp {
     background-color: var(--bg) !important;
     font-family: 'Noto Sans KR', sans-serif;
-    color: var(--text);
+    color: var(--text) !important;
+    color-scheme: light only !important;
+}
+
+/* 모바일 다크모드에서도 글자색 강제 */
+.stApp, .stApp p, .stApp span, .stApp div, .stApp label,
+.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+.stMarkdown, .stMarkdown p, .stMarkdown span, .stMarkdown div,
+.stMarkdown li, .stMarkdown strong, .stMarkdown em {
+    color: var(--text) !important;
+}
+
+/* caption, small 텍스트 */
+.stCaption, small, .stApp small {
+    color: var(--text-muted) !important;
+}
+
+/* 라디오, 체크박스 라벨 */
+.stRadio label, .stCheckbox label, .stSelectbox label,
+.stTextInput label, .stTextArea label, .stNumberInput label,
+.stMultiSelect label, .stSlider label, .stFileUploader label {
+    color: var(--text) !important;
 }
 
 .main-header {
@@ -71,45 +94,71 @@ html, body, .stApp {
     font-weight: 500;
     font-size: 0.9rem;
     padding: 0.75rem 1.5rem;
-    color: var(--text-muted);
+    color: var(--text-muted) !important;
     border-radius: 0;
+    background: var(--surface) !important;
 }
 .stTabs [aria-selected="true"] {
     background: var(--accent) !important;
     color: white !important;
 }
+.stTabs [aria-selected="true"] p {
+    color: white !important;
+}
 .stTabs [data-baseweb="tab-panel"] {
-    background: var(--surface);
+    background: var(--surface) !important;
     border: 1px solid var(--border);
     border-top: none;
     border-radius: 0 0 8px 8px;
     padding: 1.5rem;
+    color: var(--text) !important;
 }
 
 .passage-card {
-    background: var(--bg);
+    background: var(--bg) !important;
     border: 1px solid var(--border);
     border-left: 4px solid var(--accent);
     border-radius: 6px;
     padding: 1rem 1.2rem;
     margin-bottom: 0.8rem;
+    color: var(--text) !important;
 }
 .passage-card h4 {
     font-family: 'Noto Serif KR', serif;
     font-size: 1rem;
-    color: var(--accent);
+    color: var(--accent) !important;
     margin: 0 0 0.3rem;
 }
+.passage-card small {
+    color: var(--text-muted) !important;
+}
 
-.stTextInput input, .stTextArea textarea, .stSelectbox select {
+.stTextInput input, .stTextArea textarea, .stSelectbox select,
+.stNumberInput input {
     border: 1px solid var(--border) !important;
     border-radius: 6px !important;
     font-family: 'Noto Sans KR', sans-serif !important;
     background: var(--bg) !important;
+    color: var(--text) !important;
+    -webkit-text-fill-color: var(--text) !important;
+}
+.stTextInput input::placeholder, .stTextArea textarea::placeholder {
+    color: var(--text-muted) !important;
+    -webkit-text-fill-color: var(--text-muted) !important;
+    opacity: 0.7 !important;
 }
 .stTextInput input:focus, .stTextArea textarea:focus {
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 2px rgba(27, 58, 92, 0.1) !important;
+}
+
+/* Selectbox 드롭다운 */
+.stSelectbox div[data-baseweb="select"] > div {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+}
+.stSelectbox div[data-baseweb="select"] span {
+    color: var(--text) !important;
 }
 
 .stButton button {
