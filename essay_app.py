@@ -248,6 +248,7 @@ def delete_passage(passage_id):
         st.error(f"삭제 실패: {e}")
 
 # ── 학생 인증 ────────────────────────────────────────────
+@st.cache_data(ttl=600)
 def find_student(student_id):
     try:
         sheet = get_auth_sheet()
@@ -263,6 +264,7 @@ def register_student(student_id, name, password):
     try:
         sheet = get_auth_sheet()
         sheet.append_row([student_id, name, hash_pw(password)])
+        find_student.clear()
         return True
     except Exception:
         return False
@@ -282,6 +284,7 @@ def reset_student_password(student_id, new_password):
         for i, row in enumerate(all_values):
             if row and str(row[0]) == str(student_id):
                 sheet.update_cell(i + 1, 3, hash_pw(new_password))
+                find_student.clear()
                 return True
         return False
     except Exception:
@@ -290,6 +293,7 @@ def reset_student_password(student_id, new_password):
 # ── 사용 제한 (월별 자동 초기화) ─────────────────────────
 BASE_MONTHLY_LIMIT = 4
 
+@st.cache_data(ttl=300)
 def get_student_limit(student_id):
     this_month = datetime.now().strftime("%Y-%m")
     try:
@@ -311,6 +315,7 @@ def grant_extra_usage(student_id, extra_count):
     try:
         sheet = get_bonus_sheet()
         sheet.append_row([str(student_id), extra_count, this_month])
+        get_student_limit.clear()
         return True, get_student_limit(student_id) - BASE_MONTHLY_LIMIT
     except Exception:
         return False, 0
@@ -328,6 +333,7 @@ def reset_extra_usage(student_id):
                 rows_to_delete.append(i + 1)
         for row_idx in reversed(rows_to_delete):
             sheet.delete_rows(row_idx)
+        get_student_limit.clear()
         return True
     except Exception:
         return False
@@ -361,6 +367,7 @@ def save_usage_log(student_id, name, career, interests, result_text):
         st.error(f"기록 저장 실패: {e}")
 
 # ── 결과 캐싱 ────────────────────────────────────────────
+@st.cache_data(ttl=600)
 def get_cached_result(cache_key):
     try:
         sheet = get_cache_sheet()
@@ -376,6 +383,7 @@ def save_cached_result(cache_key, result_text):
     try:
         sheet = get_cache_sheet()
         sheet.append_row([cache_key, result_text[:10000], datetime.now().strftime("%Y-%m-%d %H:%M")])
+        get_cached_result.clear()
     except Exception:
         pass
 
@@ -385,6 +393,7 @@ def clear_result_cache():
         all_values = sheet.get_all_values()
         if len(all_values) > 1:
             sheet.delete_rows(2, len(all_values))
+        get_cached_result.clear()
     except Exception:
         pass
 
@@ -468,6 +477,10 @@ if "refine_result" not in st.session_state:
     st.session_state.refine_result = None
 if "auth_student" not in st.session_state:
     st.session_state.auth_student = None
+if "monthly_usage" not in st.session_state:
+    st.session_state.monthly_usage = 0
+if "usage_limit" not in st.session_state:
+    st.session_state.usage_limit = BASE_MONTHLY_LIMIT
 
 # ── 헤더 ─────────────────────────────────────────────────
 st.markdown("""
@@ -510,6 +523,9 @@ with tab_student:
                     else:
                         if register_student(aid, aname, apw):
                             st.session_state.auth_student = {"학번": aid, "이름": aname}
+                            # 로그인 직후 한 번만 시트에서 가져와 session_state에 저장
+                            st.session_state.monthly_usage = check_monthly_usage(aid)
+                            st.session_state.usage_limit = get_student_limit(aid)
                             st.success(f"✅ {aname}님 등록 완료!")
                             st.rerun()
                         else:
@@ -526,6 +542,9 @@ with tab_student:
                             st.error("비밀번호가 틀렸습니다.")
                         else:
                             st.session_state.auth_student = {"학번": aid, "이름": student.get("이름", "")}
+                            # 로그인 직후 한 번만 시트에서 가져와 session_state에 저장
+                            st.session_state.monthly_usage = check_monthly_usage(aid)
+                            st.session_state.usage_limit = get_student_limit(aid)
                             st.session_state.result = None
                             st.session_state.refine_result = None
                             st.rerun()
@@ -533,8 +552,9 @@ with tab_student:
         # ── 로그인 후 메인 화면 ──
         else:
             student = st.session_state.auth_student
-            monthly = check_monthly_usage(student["학번"])
-            limit = get_student_limit(student["학번"])
+            # session_state에서 가져옴 (시트 호출 없음)
+            monthly = st.session_state.monthly_usage
+            limit = st.session_state.usage_limit
 
             col1, col2 = st.columns([1, 1.2], gap="large")
 
@@ -549,6 +569,8 @@ with tab_student:
                         st.session_state.auth_student = None
                         st.session_state.result = None
                         st.session_state.refine_result = None
+                        st.session_state.monthly_usage = 0
+                        st.session_state.usage_limit = BASE_MONTHLY_LIMIT
                         st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -580,7 +602,9 @@ with tab_student:
                             st.session_state.result = cached
                             st.session_state.refine_result = None
                             save_usage_log(student["학번"], student["이름"], career, interests, cached)
-                            st.caption(f"💡 이번 달 {monthly + 1}/{limit}회 사용 (캐시 활용)")
+                            # 사용 횟수 갱신 (시트 안 읽고 +1)
+                            st.session_state.monthly_usage += 1
+                            st.caption(f"💡 이번 달 {st.session_state.monthly_usage}/{limit}회 사용 (캐시 활용)")
                         else:
                             client = get_claude_client()
                             if not client:
@@ -600,7 +624,9 @@ with tab_student:
 
                                         save_cached_result(cache_key, result_text)
                                         save_usage_log(student["학번"], student["이름"], career, interests, result_text)
-                                        st.caption(f"💡 이번 달 {monthly + 1}/{limit}회 사용했습니다.")
+                                        # 사용 횟수 갱신 (시트 안 읽고 +1)
+                                        st.session_state.monthly_usage += 1
+                                        st.caption(f"💡 이번 달 {st.session_state.monthly_usage}/{limit}회 사용했습니다.")
 
                                     except anthropic.RateLimitError:
                                         st.error("⏳ 요청이 많아요. 30초 후 다시 시도해주세요.")
